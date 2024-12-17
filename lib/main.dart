@@ -8,7 +8,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Movies App',
+      title: 'CinéVerse',
       debugShowCheckedModeBanner: false,
       home: MovieListScreen(),
     );
@@ -30,7 +30,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Movies App'),
+        title: Text('CinéVerse'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -38,7 +38,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
           children: [
             TextField(
               controller: _searchController,
-              decoration: InputDecoration(labelText: 'Search Movies'),
+              decoration: InputDecoration(labelText: 'Rechercher des films'),
               onSubmitted: (value) {
                 _searchMovies(value);
               },
@@ -58,7 +58,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => DetailFilms(movie: _movies[index]),
+                          builder: (context) => MoviesDetailFilms(movie: _movies[index]),
                         ),
                       );
                     },
@@ -93,7 +93,7 @@ class _MovieListScreenState extends State<MovieListScreen> {
   }
 }
 
-  // Class pour les films
+// Class pour les films
 
 class Movie {
   final String title;
@@ -115,71 +115,121 @@ class Movie {
   }
 }
 
-// Partie pour les details des films
-class DetailFilms extends StatefulWidget {
+
+
+
+// Class pour afficher les détails des films
+
+class MoviesDetailFilms extends StatefulWidget {
+  final Movie movie;
+
+  MoviesDetailFilms({required this.movie});
+
   @override
-  _DetailFilmsState createState() => _DetailFilmsState();
+  _MoviesDetailFilmsState createState() => _MoviesDetailFilmsState();
 }
 
-abstract class _DetailFilmsState extends State<DetailFilms> {
-  
-  dynamic DetailFilms({required dynamic movie});
+class _MoviesDetailFilmsState extends State<MoviesDetailFilms> {
+  Map<String, dynamic>? _movieDetails;
+  bool _isLoading = true;
 
-  final Movie movie;
+  @override
+  void initState() {
+    super.initState();
+    _MoviesDetailPlus(widget.movie.imdbID);
+  }
+
+  Future<void> _MoviesDetailPlus(String imdbID) async {
+    const apiKey = 'a9cf029';
+    final apiUrl = 'http://www.omdbapi.com/?apikey=$apiKey&i=$imdbID';
+
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _movieDetails = json.decode(response.body);
+          _isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load movie details');
+      }
+    } catch (error) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(movie.title),
+        title: Text(widget.movie.title),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Center(
-              child: Image.network(movie.image),
-              ),
-              const SizedBox(height: 16.0),
-              Text(
-                textAlign: TextAlign.center,
-                'Titre: ${movie.title}',
-                style:  const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                'Année de diffusion: ${movie.year}',
-                style: const TextStyle(fontSize: 16.0, fontWeight:  FontWeight.bold),
-              ),
-              Text(
-                'Categorie: ${movie.type}',
-                style: const TextStyle(fontSize: 16.0, fontWeight:  FontWeight.bold),
-              ),
-              Text(
-                'Description: ${movie.imdbID}',
-                style: const TextStyle(fontSize: 16.0),
-              ), 
-          ],
-        ),
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _movieDetails != null
+              ? SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Image.network(
+                          _movieDetails!['Poster'],
+                          height: 300,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.broken_image, size: 100);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16.0),
+                      
+                      // Center le texte en gras 
+                      Center(
+                        child: Text(
+                          textAlign: TextAlign.center,
+                          _movieDetails!['Title'],
+                          style: const TextStyle(
+                            decoration: TextDecoration.underline,
+                            fontSize: 24.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8.0),
+                      Text('Année: ${_movieDetails!['Year']}'),
+                      const SizedBox(height: 7.0),
+                      Text('Type: ${_movieDetails!['Genre']}'),
+                      const SizedBox(height: 7.0),
+                      Text('Réalisateur: ${_movieDetails!['Director']}'),
+                      const SizedBox(height: 7.0),
+                      Text('Prix: ${_movieDetails!['Awards']}'),
+                      const SizedBox(height: 7.0),
+                      Text('Temps: ${_movieDetails!['Runtime']}'),
+                      const SizedBox(height: 16.0),
+
+
+                       // Center le texte en gras 
+                      const Center(
+                        child: Text(
+                          'Résumé :',
+                          style: TextStyle(
+                            decoration: TextDecoration.underline,
+                            fontSize: 18.0,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10.0),
+                      Text(_movieDetails!['Plot']),
+                    ],
+                  ),
+                )
+              : const Center(child: Text('Failed to load movie details')),
     );
   }
-
-  Future<void> _detailMoviePlus(String imdbID) async {
-    const apiKey = 'a9cf029';
-    final apiUrl = 'http://www.omdbapi.com/?apikey=$apiKey&i=$imdbID';
-
-    final response = await http.get(Uri.parse(apiUrl));
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = json.decode(response.body);
-
-      setState(() {
-        _movies = movies.map((movie) => Movie.fromJson(movie)).toList();
-      });
-    } else {
-      throw Exception('Failed to load movies');
-    }
-  }
 }
+
